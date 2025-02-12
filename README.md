@@ -100,7 +100,7 @@ linux-security-dashboard/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/marwan-ahmed-23/linux-security-dashboard.git
+git clone https://github.com/m-ah07/linux-security-dashboard.git
 ```
 
 ### 2. Install Backend Dependencies
