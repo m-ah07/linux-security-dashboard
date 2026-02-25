@@ -7,13 +7,18 @@ A full-stack application for real-time monitoring and analysis of Linux system s
 ## Table of Contents
 
 1. [Key Features](#key-features)  
-2. [Tech Stack](#tech-stack)  
-3. [Project Structure](#project-structure)  
-4. [Installation](#installation)  
-5. [Usage](#usage)  
-6. [Docker Deployment](#docker-deployment-optional)  
-7. [Contributing](#contributing)  
-8. [License](#license)
+2. [Requirements](#requirements)  
+3. [Platform Support](#platform-support)  
+4. [Tech Stack](#tech-stack)  
+5. [Project Structure](#project-structure)  
+6. [Installation](#installation)  
+7. [Usage](#usage)  
+8. [Default Login Credentials](#default-login-credentials)  
+9. [API Endpoints](#api-endpoints)  
+10. [Docker Deployment](#docker-deployment-optional)  
+11. [Troubleshooting](#troubleshooting)  
+12. [Contributing](#contributing)  
+13. [License](#license)
 
 
 ## Key Features
@@ -33,8 +38,36 @@ A full-stack application for real-time monitoring and analysis of Linux system s
 - **Scalable Architecture**  
   Separate **backend** for data collection/processing and **frontend** for a responsive, user-friendly dashboard.
 
+- **Authentication**  
+  JWT-based login protects all dashboard data. Default credentials can be configured via environment variables.
+
 - **Optional Docker Support**  
   Use `docker-compose` to containerize the application (frontend, backend, and MongoDB if applicable) for easy deployment.
+
+
+## Requirements
+
+Before you begin, ensure you have:
+
+- **Node.js** (v18 or newer) — [Download](https://nodejs.org/)
+- **npm** (comes with Node.js)
+- **Linux** — For full functionality (Open Ports, Logs, Vulnerability Scanner)
+- **Nmap** — Required for Vulnerability Scanner (install: `apt install nmap` on Ubuntu/Debian)
+
+
+## Platform Support
+
+| Feature              | Linux | Windows |
+|----------------------|-------|---------|
+| System Dashboard     | ✅    | ✅      |
+| Open Ports           | ✅    | ❌      |
+| Failed Login Logs    | ✅    | ❌      |
+| Vulnerability Scanner| ✅*   | ⚠️      |
+
+\* Requires Nmap installed  
+⚠️ Windows: Only works if Nmap is installed; Open Ports and Logs use Linux commands (`ss`, `grep`, `/var/log/auth.log`).
+
+**On Windows:** Use [WSL2](https://docs.microsoft.com/en-us/windows/wsl/) or [Docker](#docker-deployment-optional) for full support.
 
 
 ## Tech Stack
@@ -60,19 +93,24 @@ linux-security-dashboard/
 ├── backend/
 │   ├── src/
 │   │   ├── app.js                          # Main Express server setup & configuration
+│   │   ├── middleware/
+│   │   │   └── auth.js                     # JWT authentication middleware
 │   │   ├── routes/
+│   │   │   ├── auth.js                     # Login route (public)
 │   │   │   ├── system.js                   # Routes for system information & open ports
 │   │   │   ├── vulnerabilities.js          # Routes for vulnerability scanning
-│   │   │   └── logs.js                     # Routes for failed login logs or system logs
+│   │   │   └── logs.js                     # Routes for failed login logs
 │   │   ├── controllers/
+│   │   │   ├── authController.js           # Login logic & JWT issuance
 │   │   │   ├── systemController.js         # Business logic for system data (info/ports)
 │   │   │   ├── vulnerabilityController.js  # Business logic for scanning vulnerabilities
-│   │   │   └── logsController.js           # Business logic for handling & cleaning logs
+│   │   │   └── logsController.js           # Business logic for handling logs
 │   │   ├── models/
 │   │   │   └── SystemLog.js                # Mongoose model (example) for storing system logs
 │   │   └── utils/
 │   │       ├── systemInfo.js               # Helper functions to fetch system info/ports
 │   │       └── vulnerabilityScanner.js     # Utility to run Nmap or other scan tools
+│   ├── .env.example                        # Environment variables template
 │   ├── package.json                        # Backend dependencies & scripts
 │   └── Dockerfile                          # Dockerfile for containerizing the backend
 ├── frontend/
@@ -83,16 +121,20 @@ linux-security-dashboard/
 │   │   │   ├── SystemDashboard.jsx         # Displays system info (CPU, memory, etc.)
 │   │   │   ├── PortList.jsx                # Lists open ports fetched from the backend
 │   │   │   ├── VulnerabilityScanner.jsx    # UI to trigger vulnerability scans & show results
-│   │   │   └── LogsView.jsx                # Shows recent failed login attempts or logs
+│   │   │   ├── LogsView.jsx                # Shows recent failed login attempts or logs
+│   │   │   ├── Login.jsx                   # Login form component
+│   │   │   └── ProtectedRoute.jsx          # Route guard for authenticated users
 │   │   ├── services/
 │   │   │   └── api.js                      # Axios instance & interceptors for API requests
 │   │   ├── App.js                          # Main React component with routes/navigation
 │   │   └── index.js                        # React DOM entry point, imports global styles
+│   ├── .env.example                        # Frontend environment variables template
 │   ├── package.json                        # Frontend dependencies & scripts
 │   └── Dockerfile                          # Dockerfile for containerizing the frontend
-├── docker-compose.yml                      # Multi-container setup for backend, frontend, DB, etc.
+├── docker-compose.yml                      # Multi-container setup for backend, frontend, DB
+├── .gitignore                              # Git ignore rules
 ├── README.md                               # Project documentation (setup, usage, etc.)
-└── LICENSE                                 # License file (e.g., MIT)
+└── LICENSE                                 # License file (MIT)
 ```
 
 
@@ -118,12 +160,45 @@ npm install
 cd ../frontend
 npm install
 ```
+- If `react-scripts` is not found when running `npm start`, install it:
+  ```bash
+  npm install react-scripts
+  ```
 
-### 4. Configure Environment (Optional)
-If using a database or advanced features, create a `.env` file in `backend/`:
+### 4. Install Nmap (Linux only, for Vulnerability Scanner)
+```bash
+# Ubuntu/Debian
+sudo apt install nmap
+
+# RHEL/CentOS
+sudo yum install nmap
+```
+
+### 5. Configure Environment
+Copy `.env.example` to `.env` in both backend and frontend:
+
+**Backend** (`backend/.env`):
 ```plaintext
 PORT=5000
+JWT_SECRET=your-secret-key-change-in-production
+JWT_EXPIRES_IN=24h
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin
+```
+
+**Frontend** (`frontend/.env`):
+```plaintext
+REACT_APP_API_URL=http://localhost:5000/api
+```
+
+If using a database, add to backend `.env`:
+```plaintext
 DB_URI=mongodb://localhost:27017/linux_security
+```
+
+**RHEL/CentOS** — Use `/var/log/secure` for auth logs:
+```plaintext
+AUTH_LOG_PATH=/var/log/secure
 ```
 
 
@@ -144,7 +219,33 @@ DB_URI=mongodb://localhost:27017/linux_security
    - Runs the React application on `http://localhost:3000`.
 
 3. **Access the Dashboard**  
-   - Open your browser at `http://localhost:3000` to view system info, logs, and more.
+   - Open your browser at **`http://localhost:3000`** (frontend).  
+   - Do **not** use `http://localhost:5000` in the browser — that is the API server and will show "Cannot GET /".
+
+
+## Default Login Credentials
+
+| Field     | Default Value |
+|-----------|---------------|
+| **Username** | `admin` |
+| **Password** | `admin` |
+
+Change these in production via `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `backend/.env`.
+
+
+## API Endpoints
+
+All endpoints except `/api/auth/login` require a JWT token in the `Authorization` header: `Bearer <token>`.
+
+| Method | Endpoint                      | Auth | Description                    |
+|--------|-------------------------------|------|--------------------------------|
+| POST   | `/api/auth/login`             | No   | Login; returns JWT             |
+| GET    | `/api/system/info`            | Yes  | System metrics (CPU, memory…)  |
+| GET    | `/api/system/ports`           | Yes  | Open ports on the host         |
+| POST   | `/api/vulnerabilities/scan`   | Yes  | Run vulnerability scan (Nmap)  |
+| GET    | `/api/vulnerabilities/results`| Yes  | Get last scan results          |
+| GET    | `/api/logs/failed-logins`     | Yes  | Failed login attempts          |
+| DELETE | `/api/logs/cleanup`           | Yes  | Log cleanup info (read-only)   |
 
 
 ## Docker Deployment (Optional)
@@ -158,6 +259,20 @@ DB_URI=mongodb://localhost:27017/linux_security
    - **backend**: Exposes `http://localhost:5000`  
    - **frontend**: Accessible at `http://localhost:3000`  
    - **mongo** (if configured) on `27017`  
+
+3. **Login** — Use `admin` / `admin` (or credentials from env vars).
+
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| **"Cannot GET /"** | You are on the backend URL. Open `http://localhost:3000` (frontend) instead of `http://localhost:5000`. |
+| **"react-scripts is not recognized"** | Run `npm install react-scripts` in the frontend folder. |
+| **Open Ports / Logs empty on Windows** | These features require Linux. Use WSL2 or Docker. |
+| **Vulnerability scan fails** | Install Nmap: `apt install nmap` (Linux). |
+| **401 Unauthorized** | Log in again. The JWT may have expired (default: 24h). |
+| **CORS errors** | Ensure backend runs on port 5000 and frontend uses `REACT_APP_API_URL=http://localhost:5000/api`. |
 
 
 ## Contributing
@@ -183,4 +298,4 @@ This project is licensed under the [MIT License](LICENSE).
 Feel free to modify and distribute as you see fit.
 
 
-**Enjoy securing your system with the Linux Security Dashboard!** For questions or feedback, [open an issue](https://github.com/marwan-ahmed-23/linux-security-dashboard/issues) or start a discussion in the repository.
+**Enjoy securing your system with the Linux Security Dashboard!** For questions or feedback, [open an issue](https://github.com/m-ah07/linux-security-dashboard/issues) or start a discussion in the repository.

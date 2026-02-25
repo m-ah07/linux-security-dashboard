@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
+const { auth } = require('./middleware/auth');
+const authRoutes = require('./routes/auth');
 const systemRoutes = require('./routes/system');
 const vulnerabilitiesRoutes = require('./routes/vulnerabilities');
 const logsRoutes = require('./routes/logs');
@@ -12,10 +14,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/system', systemRoutes);
-app.use('/api/vulnerabilities', vulnerabilitiesRoutes);
-app.use('/api/logs', logsRoutes);
+// Public routes
+app.use('/api/auth', authRoutes);
+
+// Protected routes
+app.use('/api/system', auth, systemRoutes);
+app.use('/api/vulnerabilities', auth, vulnerabilitiesRoutes);
+app.use('/api/logs', auth, logsRoutes);
 
 // For example 
 // MongoDB:

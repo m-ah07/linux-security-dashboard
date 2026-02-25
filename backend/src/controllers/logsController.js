@@ -11,7 +11,8 @@ exports.getFailedLogins = async (req, res) => {
 
 exports.cleanupOldLogs = async (req, res) => {
   try {
-    return res.json({ message: 'Old logs cleaned up successfully' });
+    const result = await systemInfo.cleanupOldLogs();
+    return res.json(result);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
